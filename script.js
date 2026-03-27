@@ -5,12 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveHistory = document.getElementById('move-history'); // Get move history container
     let moveCount = 1; // Initialize the move count
     let userColor = 'w'; // Initialize the user's color as white
+    let botIsRunning = false;
 
     // Function to make a move for the computer via API
     const makeRandomMove = async () => {
         if (game.game_over()) {
             alert("Checkmate!");
-            return;
+            return 1;
         }
 
         try {
@@ -29,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // ❗ kiểm tra dữ liệu trả về
             if (!data || !data.move) {
                 console.error("Invalid API response:", data);
-                return;
+                return -1;
             }
 
             console.log("API move:", data.move);
@@ -47,15 +48,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (move === null) {
                 console.error("Invalid move from API:", data.move);
                 console.log("Current FEN:", game.fen());
-                return;
+                return -2;
             }
 
             board.position(game.fen());
             recordMove(move.san, moveCount);
             moveCount++;
+            return 0;
 
         } catch (error) {
             console.error("API error:", error);
+            return -3;
         }
     };
 
@@ -140,4 +143,32 @@ document.addEventListener('DOMContentLoaded', () => {
         userColor = userColor === 'w' ? 'b' : 'w';
     });
 
+  const botVBot = async () => {
+    if (botIsRunning) {return;}
+
+    botIsRunning = true;
+    while (botIsRunning) {
+      const result = await makeRandomMove();
+      if (result != 0) {
+        botIsRunning = false;
+        break;
+      }
+
+      // delay to see the moves being made
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
+
+  const botBtn = document.querySelector('.bot-v-bot');
+  botBtn.addEventListener('click', () => {
+    if (botIsRunning) {
+      botIsRunning = false;
+      botBtn.textContent = "Start Bot vs Bot";
+    } else {
+      botBtn.textContent = "Stop Bot vs Bot";
+      botVBot();
+    }
+  });
+
 });
+
