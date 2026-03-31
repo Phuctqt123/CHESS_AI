@@ -62,6 +62,31 @@
         </footer>
     </div>
 
+    <!-- Promotion Modal -->
+    <div id="promotion-modal" class="modal">
+        <div class="modal-content">
+            <h3>Choose Promotion</h3>
+            <div class="promotion-options">
+                <div class="promotion-option" data-piece="q">
+                    <img src="/static/img/chesspieces/wikipedia/wQ.png" alt="Queen" id="promo-q">
+                    <span>Queen</span>
+                </div>
+                <div class="promotion-option" data-piece="r">
+                    <img src="/static/img/chesspieces/wikipedia/wR.png" alt="Rook" id="promo-r">
+                    <span>Rook</span>
+                </div>
+                <div class="promotion-option" data-piece="b">
+                    <img src="/static/img/chesspieces/wikipedia/wB.png" alt="Bishop" id="promo-b">
+                    <span>Bishop</span>
+                </div>
+                <div class="promotion-option" data-piece="n">
+                    <img src="/static/img/chesspieces/wikipedia/wN.png" alt="Knight" id="promo-n">
+                    <span>Knight</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="{{ url_for('static', filename='js/vendor/chessboard.min.js') }}"></script>
