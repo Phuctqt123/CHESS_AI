@@ -37,13 +37,50 @@
 
             <aside class="side-panel">
                 <div class="card control-card">
-                    <h3><i class="fas fa-sliders-h"></i> Commands</h3>
-                    <div class="button-grid">
-                        <button class="play-again primary-btn" title="Restart Game">
-                            <i class="fas fa-redo"></i> Reset Match
+                    <h3><i class="fas fa-gamepad"></i> Game Settings</h3>
+                    
+                    <div class="setup-group">
+                        <label>Game Mode:</label>
+                        <select id="game-mode" class="custom-select">
+                            <option value="pve">Player vs AI (PvE)</option>
+                            <option value="eve">AI vs AI (EvE)</option>
+                        </select>
+                    </div>
+
+                    <div id="pve-setup" class="setup-subgroup">
+                        <label>Difficulty:</label>
+                        <select id="difficulty-select" class="custom-select">
+                            <option value="mcts">Easy (MCTS)</option>
+                            <option value="alphabeta">Intermediate (Alpha-Beta Pruning)</option>
+                            <option value="genetic">Advanced (Alpha-Beta Pruning + Genetic)</option>
+                        </select>
+                    </div>
+
+                    <div id="eve-setup" class="setup-subgroup" style="display: none;">
+                        <div style="margin-bottom: 10px;">
+                            <label>White (AI):</label>
+                            <select id="white-algo" class="custom-select">
+                                <option value="alphabeta">Alpha-Beta Pruning</option>
+                                <option value="mcts">MCTS</option>
+                                <option value="genetic">Alpha-Beta Pruning + Genetic</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Black (AI):</label>
+                            <select id="black-algo" class="custom-select">
+                                <option value="mcts">MCTS</option>
+                                <option value="alphabeta">Alpha-Beta Pruning</option>
+                                <option value="genetic">Alpha-Beta Pruning + Genetic</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="button-grid" style="margin-top: 20px;">
+                        <button id="start-btn" class="primary-btn play-again">
+                            <i class="fas fa-play"></i> Start / Reset
                         </button>
-                        <button class="flip-board secondary-btn" title="Switch Sides">
-                            <i class="fas fa-exchange-alt"></i> Flip View
+                        <button class="flip-board secondary-btn">
+                            <i class="fas fa-exchange-alt"></i> Flip Board
                         </button>
                     </div>
                 </div>
@@ -58,10 +95,32 @@
         </main>
 
         <footer>
-            <p>&copy; 2026 GrandMaster AI System • Engine powered by <span class="accent-text">Minimax with Alpha-Beta</span></p>
+            <p>&copy; 2026 GrandMaster AI System &bull; Engine powered by <strong style="color: var(--primary-color);">Group 9</strong></p>
         </footer>
     </div>
-
+    </div> <div id="promotion-modal" class="modal">
+        <div class="modal-content">
+            <h3>Choose Promotion</h3>
+            <div class="promotion-options">
+                <div class="promotion-option" data-piece="q">
+                    <img src="/static/img/chesspieces/wikipedia/wQ.png" alt="Queen" id="promo-q">
+                    <span>Queen</span>
+                </div>
+                <div class="promotion-option" data-piece="r">
+                    <img src="/static/img/chesspieces/wikipedia/wR.png" alt="Rook" id="promo-r">
+                    <span>Rook</span>
+                </div>
+                <div class="promotion-option" data-piece="b">
+                    <img src="/static/img/chesspieces/wikipedia/wB.png" alt="Bishop" id="promo-b">
+                    <span>Bishop</span>
+                </div>
+                <div class="promotion-option" data-piece="n">
+                    <img src="/static/img/chesspieces/wikipedia/wN.png" alt="Knight" id="promo-n">
+                    <span>Knight</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="{{ url_for('static', filename='js/vendor/chessboard.min.js') }}"></script>

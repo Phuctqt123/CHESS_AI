@@ -173,6 +173,21 @@ main {
     gap: 24px;
 }
 
+.control-card {
+    padding: 24px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.control-card h3 {
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
 .card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--glass-border);
@@ -188,6 +203,54 @@ main {
     align-items: center;
     gap: 10px;
     color: var(--text-main);
+}
+
+.setup-group, .setup-subgroup > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.setup-group label, .setup-subgroup label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-left: 2px;
+}
+
+.custom-select {
+    width: 100%;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none; 
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+.custom-select:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary);
+}
+
+.custom-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.custom-select option {
+    background-color: #1e293b;
+    color: #fff;
 }
 
 .button-grid {
@@ -235,6 +298,48 @@ button {
 .secondary-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
+}
+
+.highlight-move {
+  position: relative;
+}
+
+.highlight-move::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  height: 30%;
+  background: rgba(0, 0, 0, 0.15); /* More visible green */
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+/* For pieces that can be captured (Ring) */
+.highlight-capture {
+  position: relative;
+}
+
+.highlight-capture::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 80%;
+  border: 5px solid rgba(0, 0, 0, 0.15);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.highlight-source {
+  background-color: rgba(255, 255, 0, 0.3) !important;
 }
 
 .move-history {

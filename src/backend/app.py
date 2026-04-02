@@ -5,7 +5,8 @@ import random
 from flask_cors import CORS
 import webbrowser
 import threading
-from .engine import get_best_move
+
+from .engine import get_best_move_alphabeta, get_best_move_mcts, get_best_move_genetic
 
 # Configure absolute paths for static and template folders
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,12 +32,20 @@ def index():
 def get_move():
     data = request.get_json()
     fen = data.get('fen')
+    algo = data.get('algo', 'alphabeta')
+    
+    # Lấy thông tin thuật toán từ frontend (mặc định là alphabeta nếu ko có)
+    algo = data.get('algo', 'alphabeta')
 
-    move = get_best_move(fen)
+    # Gọi đúng hàm dựa trên lựa chọn
+    if algo == 'mcts':
+        move = get_best_move_mcts(fen, iterations=150)
+    elif algo == 'genetic':
+        move = get_best_move_genetic(fen, depth=5)
+    else: # Mặc định là alphabeta
+        move = get_best_move_alphabeta(fen, depth=3)
 
-    return jsonify({
-        "move": move
-    })
+    return jsonify({"move": move})
 
 
 def open_browser():
