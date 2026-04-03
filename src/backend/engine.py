@@ -1,32 +1,64 @@
 import chess
 import random
+import math
 
-def get_best_move(fen):
-    """
-    INPUT:
-        fen (str): Chuỗi FEN mô tả trạng thái bàn cờ hiện tại
-                   Ví dụ:
-                   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+class MCTSNode:
+    def __init__(self, board, parent=None):
+        self.board = board
+        self.parent = parent
+        self.children = {}
+        self.wins = 0
+        self.visits = 0
 
-    OUTPUT:
-        str: nước đi ở dạng UCI (Universal Chess Interface)
-             ví dụ: "e2e4", "g1f3", ...
-        hoặc:
-        None: nếu không còn nước đi hợp lệ (checkmate / stalemate)
-    """
+    def uct_value(self, total_visits, C=1.41):
+        if self.visits == 0:
+            return float('inf')  # Ưu tiên khám phá nút chưa thăm
+        return (self.wins / self.visits) + C * math.sqrt(math.log(total_visits) / self.visits)
 
-    # Tạo bàn cờ từ FEN
-    board = chess.Board(fen)
 
-    # Lấy danh sách tất cả nước đi hợp lệ
-    moves = list(board.legal_moves)
+def get_best_move(fen, iterations=800):
+    root_board = chess.Board(fen)
+    root_node = MCTSNode(root_board)
 
-    # Nếu không còn nước đi → kết thúc ván
-    if not moves:
-        return None
+    for _ in range(iterations):
+        # 1. Selection & 2. Expansion
+        node = root_node
+        temp_board = root_board.copy()
 
-    # Chọn ngẫu nhiên 1 nước đi
-    move = random.choice(moves)
+        while node.children:
+            # Chọn nút con có UCT cao nhất
+            move, node = max(node.children.items(), key=lambda x: x[1].uct_value(node.visits))
+            temp_board.push(move)
 
-    # Trả về dạng UCI (ví dụ: e2e4)
-    return move.uci()
+        if not temp_board.is_game_over():
+            # Mở rộng tất cả nước đi hợp lệ
+            for move in temp_board.legal_moves:
+                temp_board.push(move)
+                node.children[move] = MCTSNode(temp_board.copy(), parent=node)
+                temp_board.pop()
+
+        # 3. Simulation (Rollout)
+        result = simulate_random_game(temp_board)
+
+        # 4. Backpropagation
+        while node:
+            node.visits += 1
+            # Cập nhật win dựa trên kết quả và lượt đi (trắng/đen)
+            if (result == "1-0" and node.board.turn == chess.BLACK) or \
+                    (result == "0-1" and node.board.turn == chess.WHITE):
+                node.wins += 1
+            elif result == "1/2-1/2":
+                node.wins += 0.5
+            node = node.parent
+
+    # Chọn nước đi được ghé thăm nhiều nhất
+    best_move = max(root_node.children.items(), key=lambda x: x[1].visits)[0]
+    return best_move.uci()
+
+
+def simulate_random_game(board):
+    temp_board = board.copy()
+    while not temp_board.is_game_over():
+        move = random.choice(list(temp_board.legal_moves))
+        temp_board.push(move)
+    return temp_board.result()
