@@ -31,19 +31,19 @@ def index():
 def get_move():
     data = request.get_json()
     fen = data.get('fen')
+    mode = data.get('algo', 'alpha_beta')
 
-    move = get_best_move(fen)
+    val = int(data.get('value', 3))
 
-    return jsonify({
-        "move": move
-    })
+    if mode == "mcts":
+        move = get_best_move(fen, mode="mcts", iterations=val * 100)
+    else:
+        move = get_best_move(fen, mode="alpha_beta", depth=val)
+
+    return jsonify({"move": move})
 
 
 def open_browser():
     # Only open browser if not in a container and matching env
     if os.environ.get('Open_Browser', 'True') == 'True':
         webbrowser.open(f"http://127.0.0.1:{os.environ.get('PORT', 5003)}")
-
-if __name__ == '__main__':
-    # When running directly from this file (development/testing)
-    app.run(host='0.0.0.0', port=5003, debug=True)

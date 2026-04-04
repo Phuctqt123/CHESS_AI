@@ -1,202 +1,190 @@
-// Wait for the DOM to be fully loaded before executing code
 document.addEventListener('DOMContentLoaded', () => {
-    let board = null; // Initialize the chessboard
-    const game = new Chess(); // Create new Chess.js game instance
-    const moveHistory = document.getElementById('move-history'); // Get move history container
-    let moveCount = 1; // Initialize the move count
-    let userColor = 'w'; // Initialize the user's color as white
+    let board = null;
+    const game = new Chess();
+    const moveHistory = document.getElementById('move-history');
+    let moveCount = 1;
+    let isAiBattle = false;
+    let userColor = 'w'; // Default: User plays White
 
-    // Function to make a move for the computer via API
+    // Update UI Labels based on selected algorithm and slider value
+    const updateSliderLabels = () => {
+        const sides = ['white', 'black'];
+        sides.forEach(side => {
+            const algo = document.getElementById(`${side}-algo`).value;
+            const val = document.getElementById(`${side}-slider`).value;
+            const label = document.getElementById(`${side}-val-label`);
+            const container = document.getElementById(`${side}-slider`).parentElement;
+
+            if (algo === 'none') {
+                label.textContent = "Manual Play";
+                container.style.opacity = "0.5";
+            } else if (algo === 'mcts') {
+                label.textContent = `Iterations: ${val * 100}`;
+                container.style.opacity = "1";
+            } else {
+                label.textContent = `Depth: ${val}`;
+                container.style.opacity = "1";
+            }
+        });
+    };
+
+    // Listen for any changes in AI configuration
+    document.querySelectorAll('select, input[type="range"]').forEach(el => {
+        el.addEventListener('input', () => {
+            updateSliderLabels();
+            checkTurnStatus();
+        });
+    });
+
     const makeComputerMove = async () => {
-        if (game.game_over()) {
-            handleGameOver();
-            return;
-        }
+        if (game.game_over()) return;
+
+        const isWhiteTurn = game.turn() === 'w';
+        const currentAlgo = isWhiteTurn ? document.getElementById('white-algo').value : document.getElementById('black-algo').value;
+
+        // EXIT if the current side is set to Human (none)
+        if (currentAlgo === 'none') return;
+
+        // Check if it's the AI's legitimate turn or Battle Mode is active
+        const isAiTurn = (isWhiteTurn && userColor === 'b') || (!isWhiteTurn && userColor === 'w');
+        if (!isAiBattle && !isAiTurn) return;
+
+        const val = isWhiteTurn ? document.getElementById('white-slider').value : document.getElementById('black-slider').value;
 
         try {
+            const aiName = currentAlgo === 'mcts' ? 'MCTS' : 'Alpha-Beta';
+            updateStatus(`${aiName} (${isWhiteTurn ? 'White' : 'Black'}) is thinking...`, "warning");
+
             const response = await fetch('/move', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fen: game.fen()
+                    fen: game.fen(),
+                    algo: currentAlgo,
+                    value: val
                 })
             });
 
             const data = await response.json();
+            if (!data || !data.move) return;
 
-            if (!data || !data.move) {
-                console.error("Invalid API response:", data);
-                updateStatus("AI Error", "error");
-                return;
-            }
-
-            const moveObj = {
-                from: data.move.substring(0, 2),
-                to: data.move.substring(2, 4),
-                promotion: 'q'
-            };
-
-            const move = game.move(moveObj);
-
-            if (move === null) {
-                console.error("Invalid move from API:", data.move);
-                return;
-            }
-
+            game.move({ from: data.move.substring(0, 2), to: data.move.substring(2, 4), promotion: 'q' });
             board.position(game.fen());
-            recordMove(move.san, moveCount);
             moveCount++;
-            
             checkTurnStatus();
 
+            // Recursion for AI Battle mode
+            if (isAiBattle && !game.game_over()) {
+                window.setTimeout(makeComputerMove, 600);
+            }
         } catch (error) {
-            console.error("API error:", error);
+            console.error("AI Error:", error);
+            isAiBattle = false;
             updateStatus("Connection Lost", "error");
         }
     };
 
-    // Function to record and display a move in the move history
-    const recordMove = (move, count) => {
-        if (count === 1) {
-            moveHistory.innerHTML = ''; // Clear placeholder on first move
+    // RESTART: Reset game and logic
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        isAiBattle = false;
+        game.reset();
+        board.start();
+        userColor = 'w';
+        moveCount = 1;
+        checkTurnStatus();
+        document.getElementById('btn-ai-vs-ai').style.display = 'inline-block';
+        document.getElementById('btn-stop').style.display = 'none';
+    });
+
+    // SWITCH SIDES: Only flip board and update perspective. DO NOT call AI.
+    document.getElementById('btn-switch').addEventListener('click', () => {
+        board.flip();
+        userColor = (userColor === 'w') ? 'b' : 'w';
+        checkTurnStatus();
+        // Automatic AI call removed to prevent unrequested moves
+    });
+
+    // AI vs AI Battle Mode
+    document.getElementById('btn-ai-vs-ai').addEventListener('click', function() {
+        if (document.getElementById('white-algo').value === 'none' ||
+            document.getElementById('black-algo').value === 'none') {
+            alert("Battle Mode requires AI selected for both sides!");
+            return;
         }
+        isAiBattle = true;
+        this.style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'inline-block';
+        makeComputerMove();
+    });
 
-        const isWhite = count % 2 === 1;
-        const moveNumber = Math.ceil(count / 2);
+    document.getElementById('btn-stop').addEventListener('click', function() {
+        isAiBattle = false;
+        this.style.display = 'none';
+        document.getElementById('btn-ai-vs-ai').style.display = 'inline-block';
+    });
 
-        if (isWhite) {
-            // Create a new row for the move number and white's move
-            const moveRow = document.createElement('div');
-            moveRow.className = 'move-row';
-            moveRow.innerHTML = `
-                <span class="move-number">${moveNumber}.</span>
-                <span class="white-move">${move}</span>
-            `;
-            moveHistory.appendChild(moveRow);
-        } else {
-            // Find the last row and append black's move to it
-            const lastRow = moveHistory.lastElementChild;
-            if (lastRow) {
-                const blackMove = document.createElement('span');
-                blackMove.className = 'black-move';
-                blackMove.textContent = move;
-                lastRow.appendChild(blackMove);
-            }
-        }
-        
-        moveHistory.scrollTop = moveHistory.scrollHeight;
-    };
-
+    // Status Checker: Show current turn and selected engine info
     const checkTurnStatus = () => {
         if (game.game_over()) {
             handleGameOver();
             return;
         }
-        
+
+        const isWhiteTurn = game.turn() === 'w';
+        const currentAlgo = isWhiteTurn ? document.getElementById('white-algo').value : document.getElementById('black-algo').value;
         const isUserTurn = game.turn() === userColor;
-        const turnText = isUserTurn ? `Your Turn (${userColor === 'w' ? 'White' : 'Black'})` : "AI's Turn (Thinking)";
-        updateStatus(turnText, isUserTurn ? "success" : "warning");
+
+        if (currentAlgo === 'none' || isUserTurn) {
+            updateStatus(`Your Turn (${isWhiteTurn ? 'White' : 'Black'})`, "success");
+        } else {
+            const aiName = currentAlgo === 'mcts' ? 'MCTS' : 'Alpha-Beta';
+            updateStatus(`${aiName}'s Turn (${isWhiteTurn ? 'White' : 'Black'})`, "warning");
+        }
     };
 
     const updateStatus = (text, type) => {
         const statusText = document.getElementById('status-text');
         const statusDot = document.querySelector('.status-dot');
+        if (!statusText || !statusDot) return;
         statusText.textContent = text;
-        
-        // Dynamic colors based on type
-        if (type === 'warning') {
-            statusDot.style.backgroundColor = '#f59e0b';
-            statusDot.style.boxShadow = '0 0 8px #f59e0b';
-        } else if (type === 'error') {
-            statusDot.style.backgroundColor = '#ef4444';
-            statusDot.style.boxShadow = '0 0 8px #ef4444';
-        } else if (type === 'success') {
-            statusDot.style.backgroundColor = '#22c55e';
-            statusDot.style.boxShadow = '0 0 8px #22c55e';
-        }
+        const colors = { success: '#22c55e', warning: '#f59e0b', error: '#ef4444' };
+        statusDot.style.backgroundColor = colors[type];
     };
 
     const handleGameOver = () => {
-        let status = "Game Over";
-        if (game.in_checkmate()) status = "Checkmate!";
-        else if (game.in_draw()) status = "Draw!";
-        updateStatus(status, "error");
-        alert(status);
+        let message = "Game Over";
+        if (game.in_checkmate()) {
+            const winner = game.turn() === 'w' ? "Black" : "White";
+            message = `CHECKMATE! ${winner} Wins!`;
+        } else if (game.in_draw()) {
+            message = "Draw Game!";
+        }
+        updateStatus(message, "error");
+        alert(message);
     };
 
-    // Function to handle the start of a drag position
-    const onDragStart = (source, piece) => {
-        if (game.game_over()) return false;
-        // User can only drag on their turn
-        if (game.turn() !== userColor) return false;
-        // Allow the user to drag only their own pieces
-        return (userColor === 'w' && piece.search(/^w/) !== -1) ||
-               (userColor === 'b' && piece.search(/^b/) !== -1);
-    };
-
-    // Function to handle a piece drop on the board
-    const onDrop = (source, target) => {
-        const move = game.move({
-            from: source,
-            to: target,
-            promotion: 'q',
-        });
-
-        if (move === null) return 'snapback';
-
-        recordMove(move.san, moveCount);
-        moveCount++;
-        
-        checkTurnStatus(); // Update to "AI's Turn"
-        window.setTimeout(makeComputerMove, 250);
-    };
-
-    // Function to handle the end of a piece snap animation
-    const onSnapEnd = () => {
-        board.position(game.fen());
-    };
-
-    // Configuration options for the chessboard
     const boardConfig = {
-        showNotation: true,
         draggable: true,
         position: 'start',
-        onDragStart,
-        onDrop,
-        onSnapEnd,
-        // Updated path for pieces
+        onDragStart: (source, piece) => {
+            if (game.game_over()) return false;
+            const isWhiteTurn = game.turn() === 'w';
+            const currentAlgo = isWhiteTurn ? document.getElementById('white-algo').value : document.getElementById('black-algo').value;
+            // Prevent dragging if it's AI's turn
+            if (currentAlgo !== 'none' && game.turn() !== userColor) return false;
+        },
+        onDrop: (source, target) => {
+            const move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+            moveCount++;
+            checkTurnStatus();
+            window.setTimeout(makeComputerMove, 250);
+        },
+        onSnapEnd: () => board.position(game.fen()),
         pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png',
-        moveSpeed: 'fast',
     };
 
-    // Initialize the chessboard
     board = Chessboard('board', boardConfig);
-
-    // Event listener for the "Play Again" button
-    document.querySelector('.play-again').addEventListener('click', () => {
-        game.reset();
-        board.start();
-        moveHistory.innerHTML = '<div class="history-placeholder">Waiting for the first move...</div>';
-        moveCount = 1;
-        userColor = 'w';
-        checkTurnStatus();
-    });
-
-
-
-    // Event listener for the "Flip Board" button
-    document.querySelector('.flip-board').addEventListener('click', () => {
-        board.flip();
-        userColor = userColor === 'w' ? 'b' : 'w';
-        
-        checkTurnStatus();
-        
-        // If it's now the computer's turn after flipping
-        if (game.turn() !== userColor) {
-            makeComputerMove();
-        }
-    });
-
+    updateSliderLabels();
+    checkTurnStatus();
 });
