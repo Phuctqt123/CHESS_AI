@@ -12,7 +12,7 @@ class MCTSNode:
 
     def uct_value(self, total_visits, C=1.41):
         if self.visits == 0:
-            return float('inf')  # Ưu tiên khám phá nút chưa thăm
+            return float('inf')  
         return (self.wins / self.visits) + C * math.sqrt(math.log(total_visits) / self.visits)
 
 
@@ -21,26 +21,21 @@ def get_best_move(fen, iterations=800):
     root_node = MCTSNode(root_board)
 
     for _ in range(iterations):
-        # 1. Selection & 2. Expansion
         node = root_node
         temp_board = root_board.copy()
 
         while node.children:
-            # Chọn nút con có UCT cao nhất
             move, node = max(node.children.items(), key=lambda x: x[1].uct_value(node.visits))
             temp_board.push(move)
 
         if not temp_board.is_game_over():
-            # Mở rộng tất cả nước đi hợp lệ
             for move in temp_board.legal_moves:
                 temp_board.push(move)
                 node.children[move] = MCTSNode(temp_board.copy(), parent=node)
                 temp_board.pop()
 
-        # 3. Simulation (Rollout)
         result = simulate_random_game(temp_board)
 
-        # 4. Backpropagation
         while node:
             node.visits += 1
             # Cập nhật win dựa trên kết quả và lượt đi (trắng/đen)
@@ -51,7 +46,6 @@ def get_best_move(fen, iterations=800):
                 node.wins += 0.5
             node = node.parent
 
-    # Chọn nước đi được ghé thăm nhiều nhất
     best_move = max(root_node.children.items(), key=lambda x: x[1].visits)[0]
     return best_move.uci()
 
