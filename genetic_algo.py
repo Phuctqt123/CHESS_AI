@@ -3,9 +3,15 @@ import copy
 import chess
 import pickle
 import os
+import signal
+import time
 from multiprocessing import Pool, cpu_count
 
+# Bộ nhớ đệm toàn cục để tăng tốc tìm kiếm nước đi hợp lệ
 legal_moves_cache = {}
+
+def init_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class Agent:
     def __init__(self):
@@ -13,31 +19,19 @@ class Agent:
         self.n_features = 2
         self.feature_weights: list[float] = []
         self.piece_values: dict[int, float] = {
-            chess.PAWN: 0.0,
-            chess.KNIGHT: 0.0,
-            chess.BISHOP: 0.0,
-            chess.ROOK: 0.0,
-            chess.QUEEN: 0.0,
-            chess.KING: 0.0
+            chess.PAWN: 0.0, chess.KNIGHT: 0.0, chess.BISHOP: 0.0,
+            chess.ROOK: 0.0, chess.QUEEN: 0.0, chess.KING: 0.0
         }
         self.piece_tables = {
-            chess.PAWN: [],
-            chess.KNIGHT: [],
-            chess.BISHOP: [],
-            chess.ROOK: [],
-            chess.QUEEN: [],
-            chess.KING: []
+            chess.PAWN: [], chess.KNIGHT: [], chess.BISHOP: [],
+            chess.ROOK: [], chess.QUEEN: [], chess.KING: []
         }
         self.__eval_cache = {}
         self.__tt_cache = {}
         self.__randomize_values()
 
     def __randomize_values(self):
-        self.feature_weights = [
-            random.uniform(0.0, 2.0),   # material weight
-            random.uniform(0.0, 2.0)    # piece-square table weight
-        ]
-
+        self.feature_weights = [random.uniform(0.0, 2.0), random.uniform(0.0, 2.0)]
         self.piece_values = {
             chess.PAWN: random.uniform(0, 200),
             chess.KNIGHT: random.uniform(0, 500),
@@ -46,71 +40,46 @@ class Agent:
             chess.QUEEN: random.uniform(0, 1200),
             chess.KING: 0
         }
-
         for piece_type in self.piece_tables:
-            bound = 100
-            self.piece_tables[piece_type] = [
-                random.uniform(-bound, bound) for _ in range(64)
-            ]
+            self.piece_tables[piece_type] = [random.uniform(-100, 100) for _ in range(64)]
 
     def eval_board(self, board: chess.Board):
         key = board.board_fen
-        if key in self.__eval_cache:
-            return self.__eval_cache[key]
-
+        if key in self.__eval_cache: return self.__eval_cache[key]
         if board.is_checkmate():
             res = board.result()
-            if res == '1-0':
-                return float('inf')
-            elif res == '0-1' :
-                return float('-inf')
-
+            return float('inf') if res == '1-0' else float('-inf')
         if board.is_stalemate() or board.is_insufficient_material() or board.is_repetition(3):
             return 0.0
 
         score = 0
-        mat_weight = self.feature_weights[0]
-        piece_position_weight = self.feature_weights[1]
-
+        mat_w, pos_w = self.feature_weights
         for square, piece in board.piece_map().items():
-            base_piece_value = self.piece_values[piece.piece_type]
+            base_val = self.piece_values[piece.piece_type]
             pst = self.piece_tables[piece.piece_type]
-            square = square if piece.color == chess.WHITE else chess.square_mirror(square)
-            value = base_piece_value * mat_weight + pst[square] * piece_position_weight
-            score += value if piece.color == chess.WHITE else -value
-
+            sq = square if piece.color == chess.WHITE else chess.square_mirror(square)
+            val = base_val * mat_w + pst[sq] * pos_w
+            score += val if piece.color == chess.WHITE else -val
         self.__eval_cache[key] = score
         return score
 
     def clearEvalCache(self):
         self.__eval_cache.clear()
+        self.__tt_cache.clear()
 
     def __order_moves(self, board):
-        key = board.fen()
-        if key in legal_moves_cache:
-            moves = legal_moves_cache[key]
-        else:
-            moves = list(board.legal_moves)
-            legal_moves_cache[key] = moves
-
+        moves = list(board.legal_moves)
         def move_score(move):
             board.push(move)
             key = board._transposition_key()
             score = self.__eval_cache.get(key, 0.0)
             board.pop()
             return score
+        return sorted(moves, key=move_score, reverse=(board.turn == chess.WHITE))
 
-        return sorted(
-            moves,
-            key=move_score,
-            reverse=(board.turn == chess.WHITE)
-        )
-
-    def __minimax(self, board: chess.Board,  depth, alpha=float('-inf'), beta=float('inf')):
+    def __minimax(self, board: chess.Board, depth, alpha=float('-inf'), beta=float('inf')):
         key = (board.fen(), depth)
-        if key in self.__tt_cache:
-            return self.__tt_cache[key]
-
+        if key in self.__tt_cache: return self.__tt_cache[key]
         if depth == 0 or board.is_game_over():
             score = self.eval_board(board)
             self.__tt_cache[key] = score
@@ -123,8 +92,7 @@ class Agent:
                 value = max(value, self.__minimax(board, depth - 1, alpha, beta))
                 board.pop()
                 alpha = max(alpha, value)
-                if alpha >= beta:
-                    break
+                if alpha >= beta: break
             self.__tt_cache[key] = value
             return value
         else:
@@ -134,120 +102,85 @@ class Agent:
                 value = min(value, self.__minimax(board, depth - 1, alpha, beta))
                 board.pop()
                 beta = min(beta, value)
-                if beta <= alpha:
-                    break
+                if beta <= alpha: break
             self.__tt_cache[key] = value
             return value
 
     def evaluate_move(self, args):
         fen, move_uci, depth = args
         board = chess.Board(fen)
-        move = chess.Move.from_uci(move_uci)
-
-        board.push(move)
+        board.push(chess.Move.from_uci(move_uci))
         score = self.__minimax(board, depth - 1)
-        board.pop()
         return move_uci, score
 
-    def get_best_moves(self, board: chess.Board, depth: int = 3, parallelize=False):
+    def get_best_moves(self, board: chess.Board, depth: int = 3):
+        moves = list(board.legal_moves)
+        if not moves: return []
+        results = []
         fen = board.fen()
-        if fen in legal_moves_cache:
-            moves = legal_moves_cache[fen]
-        else:
-            moves = list(board.legal_moves)
-            legal_moves_cache[fen] = moves
-
-        if parallelize:
-            args = [(fen, move.uci(), depth) for move in moves]
-            with Pool(cpu_count() - 2) as pool:
-                results = pool.map(self.evaluate_move, args)
-        else:
-            results = []
-            for move in moves:
-                args = (fen, move.uci(), depth)
-                res = self.evaluate_move(args)
-                results.append(res)
-
+        for move in moves:
+            results.append(self.evaluate_move((fen, move.uci(), depth)))
+        
         move_scores = {chess.Move.from_uci(m): s for m, s in results}
-        scores = move_scores.values()
-        best_score = max(scores) if board.turn == chess.WHITE else min(scores)
-        best_moves = [m for m, s in move_scores.items() if s == best_score]
-        return best_moves
+        best_score = max(move_scores.values()) if board.turn == chess.WHITE else min(move_scores.values())
+        return [m for m, s in move_scores.items() if s == best_score]
 
-    def get_move(self, board: chess.Board, depth: int = 3, parallelize=False):
-        moves = self.get_best_moves(board, depth, parallelize)
-        if not moves:
-            return None
-        return random.choice(moves) 
+    def get_move(self, board: chess.Board, depth: int = 3):
+        best_moves = self.get_best_moves(board, depth)
+        return random.choice(best_moves) if best_moves else None
 
-
-def play_game(agent1: Agent, agent2: Agent, max_n_moves: int =50, depth: int = 3):
+def play_game(agent1: Agent, agent2: Agent, max_n_moves: int = 50, depth: int = 3):
     board = chess.Board()
-    white = agent1
-    black = agent2
-
-    for _ in range(max_n_moves*2):
+    for _ in range(max_n_moves * 2):
         if board.is_game_over():
-            match board.result():
-                case '1-0':
-                    return 1.0
-                case '0-1' :
-                    return -1.0
-                case '1/2-1/2':
-                    return 0.5
-                case _ :
-                    break
-
-        if board.turn == chess.WHITE:
-            move_uci = white.get_move(board, depth, parallelize=True)
-        else:
-            move_uci = black.get_move(board, depth, parallelize=True)
-
-        board.push(move_uci)
+            res = board.result()
+            if res == '1-0': return 1.0
+            if res == '0-1': return -1.0
+            return 0.5
+        move = agent1.get_move(board, depth) if board.turn == chess.WHITE else agent2.get_move(board, depth)
+        if move is None: break
+        board.push(move)
     return 0.0
 
 def update_elo(r_a, r_b, game_res):
-    if abs(game_res - 0.0) < 1e-10:
-        return r_a
-
-    expected_score = 1 / ( 1 + 10 ** ((r_b - r_a)/400) )
+    if abs(game_res) < 1e-10: return r_a
+    expected = 1 / (1 + 10 ** ((r_b - r_a)/400))
     score = game_res + 1.0 if game_res < 0.0 else game_res
-
-    if r_a < 1700:
-        k = 40
-    elif r_a > 2400:
-        k = 10
-    else:
-        k = 20
-
-    new_rating = r_a + k * (score - expected_score)
-    return new_rating
+    k = 40 if r_a < 1700 else (10 if r_a > 2400 else 20)
+    return r_a + k * (score - expected)
 
 def play_match(args):
     i, j, a, b = args
     result = play_game(a, b)
-
-    r_a = a.rating
-    r_b = b.rating
-    r_a_delta = update_elo(r_a, r_b, result) - r_a
-    r_b_delta = update_elo(r_b, r_a, -result) - r_b
-
-    return (i, r_a_delta, j, r_b_delta)
+    return (i, update_elo(a.rating, b.rating, result) - a.rating, j, update_elo(b.rating, a.rating, -result) - b.rating)
 
 def evaluate_population(population: list[Agent], games_per_agent=5):
     indices = list(range(len(population)))
     matchups = []
-    deltas = [0.0 for _ in population]
-
     for i in indices:
         opps = random.sample(indices, games_per_agent)
-        while i in opps:
-            opps = random.sample(indices, games_per_agent)
-        for j in opps:
-            matchups.append((i, j, population[i], population[j]))
+        while i in opps: opps = random.sample(indices, games_per_agent)
+        for j in opps: matchups.append((i, j, population[i], population[j]))
 
-    results = [play_match(matchup) for matchup in matchups]
+    pool = Pool(processes=cpu_count()-1, initializer=init_worker)
+    try:
+        print(f"  Fighting: {len(matchups)} parallel matches...")
+        result_async = pool.map_async(play_match, matchups)
+        
+        while not result_async.ready():
+            time.sleep(1) 
+            
+        results = result_async.get()
+    except KeyboardInterrupt:
+        print("\n[!] Ctrl+C detected! Terminating all workers immediately...")
+        pool.terminate()
+        pool.join()
+        raise
+    finally:
+        pool.close()
+        pool.join()
 
+    deltas = [0.0 for _ in population]
     for i, d_i, j, d_j in results:
         deltas[i] += d_i
         deltas[j] += d_j
@@ -256,116 +189,73 @@ def evaluate_population(population: list[Agent], games_per_agent=5):
     for i, agent in enumerate(population):
         agent.rating += deltas[i]
         ratings[agent] = agent.rating
-
     return ratings
 
-def select(population, fitnesses, top_k=10):
-    paired = [(agent, fitnesses[agent]) for agent in population]
-    paired.sort(key=lambda x: x[1], reverse=True)
-    selected = [agent for agent, _ in paired[:top_k]]
-    return selected
+def select(population, fitnesses, top_k=3):
+    paired = sorted([(a, fitnesses[a]) for a in population], key=lambda x: x[1], reverse=True)
+    return [a for a, _ in paired[:top_k]]
 
-def crossover(parent1, parent2):
-    child = copy.deepcopy(parent1)
+def crossover(p1, p2):
+    child = copy.deepcopy(p1)
     child.clearEvalCache()
-
-    for i in range(len(child.feature_weights)):
-        if random.random() < 0.5:
-            child.feature_weights[i] = parent2.feature_weights[i]
-
+    if random.random() < 0.5: child.feature_weights = p2.feature_weights
     for p in child.piece_values:
-        if random.random() < 0.5:
-            child.piece_values[p] = parent2.piece_values[p]
-
+        if random.random() < 0.5: child.piece_values[p] = p2.piece_values[p]
     for p in child.piece_tables:
-        for i in range(64):
-            if random.random() < 0.5:
-                child.piece_tables[p][i] = parent2.piece_tables[p][i]
-
+        for idx in range(64):
+            if random.random() < 0.5: child.piece_tables[p][idx] = p2.piece_tables[p][idx]
     return child
 
-def mutate(agent: Agent, rate=0.1):
+def mutate(agent, rate=0.1):
     for i in range(len(agent.feature_weights)):
-        if random.random() < rate:
-            agent.feature_weights[i] += random.uniform(-0.2, 0.2)
-
+        if random.random() < rate: agent.feature_weights[i] += random.uniform(-0.2, 0.2)
     for p in agent.piece_values:
-        if random.random() < rate:
-            agent.piece_values[p] += random.uniform(-20, 20)
-
-    for p in agent.piece_tables:
-        for i in range(64):
-            if random.random() < rate:
-                agent.piece_tables[p][i] += random.uniform(-5, 5)
-
+        if random.random() < rate: agent.piece_values[p] += random.uniform(-20, 20)
     return agent
 
-def save_checkpoint(population, gen, filename="ga_checkpoint.pkl"):
-    print(f'Saving to {filename}...')
+def save_checkpoint(pop, gen, filename="ga_checkpoint.pkl"):
+    print(f"  Saving Gen {gen}...")
     with open(filename, "wb") as f:
-        pickle.dump({
-            "generation": gen,
-            "population": population
-        }, f)
+        pickle.dump({"generation": gen, "population": pop}, f)
 
 def load_checkpoint(filename="ga_checkpoint.pkl"):
-    print('Loading from ' + filename + '...')
-    if not os.path.exists(filename):
-        return None, 0
+    if not os.path.exists(filename): return None, 0
+    print(f"  Loading {filename}...")
     with open(filename, "rb") as f:
         data = pickle.load(f)
     return data["population"], data["generation"]
 
-def run_ga(pop_size=30, generations=200, checkpoint_file="ga_checkpoint.pkl"):
+def run_ga(pop_size=10, generations=100):
+    checkpoint_file = "ga_checkpoint.pkl"
     population, start_gen = load_checkpoint(checkpoint_file)
-
     if population is None:
-        print("Starting fresh...")
         population = [Agent() for _ in range(pop_size)]
         start_gen = 0
-    else:
-        print(f"Resuming from generation {start_gen}")
 
-    for gen in range(start_gen + 1, generations + 1):
-        print(f"Generation {gen}")
-
-        print('Agents are fighting...')
-        fitnesses = evaluate_population(population)
-        for agent in fitnesses:
-            print(fitnesses[agent], end=' ')
-        print()
-        print("Best elo:", max(fitnesses.values()))
-
-        print('Filtering agents...')
-        elites = select(population, fitnesses, top_k=3)
-
-        new_population = elites[:]
-
-        print('Repopulating generation...')
-        while len(new_population) < pop_size:
-            p1, p2 = random.sample(elites, 2)
-            child = crossover(p1, p2)
-            child = mutate(child)
-            new_population.append(child)
-
-        population = new_population
-        save_checkpoint(population, gen, checkpoint_file)
-
-    return population
+    try:
+        for gen in range(start_gen + 1, generations + 1):
+            print(f"\n--- Generation {gen} ---")
+            fitnesses = evaluate_population(population)
+            print(f"  Best Rating: {max(fitnesses.values()):.1f}")
+            
+            elites = select(population, fitnesses)
+            new_pop = elites[:]
+            while len(new_pop) < pop_size:
+                p1, p2 = random.sample(elites, 2)
+                new_pop.append(mutate(crossover(p1, p2)))
+            population = new_pop
+            save_checkpoint(population, gen, checkpoint_file)
+    except KeyboardInterrupt:
+        print("\nGA training stopped safely by User.")
 
 def getBestAgent():
     pop, _ = load_checkpoint()
-    ratings = [agent.rating for agent in pop]
-    best_rating = max(ratings)
-    best_agents = [agent for agent in pop if agent.rating == best_rating]
-    chosen_agent = best_agents[0]
-    print(chosen_agent.feature_weights)
-    print(chosen_agent.piece_values)
-    print(chosen_agent.piece_tables)
-    return chosen_agent
-
-def main():
-    run_ga()
+    if not pop: return None
+    best_agent = max(pop, key=lambda a: a.rating)
+    print("\n--- BEST AGENT STATS ---")
+    print(f"Weights: {best_agent.feature_weights}")
+    print(f"Values: {best_agent.piece_values}")
+    return best_agent
 
 if __name__ == "__main__":
-    main()
+    run_ga()

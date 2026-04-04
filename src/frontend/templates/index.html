@@ -50,9 +50,9 @@
                     <div id="pve-setup" class="setup-subgroup">
                         <label>AI Algorithm:</label>
                         <select id="difficulty-select" class="custom-select">
-                            <option value="mcts">Easy (MCTS)</option>
-                            <option value="alphabeta" selected>Intermediate (Alpha-Beta)</option>
-                            <option value="genetic">Advanced (Alpha-Beta + Genetic)</option>
+                            <option value="mcts">MCTS (Strategic)</option>
+                            <option value="alphabeta" selected>Alpha-Beta (Tactical)</option>
+                            <option value="genetic">Alpha-Beta + Genetic (Advanced)</option>
                         </select>
                     </div>
 
@@ -60,17 +60,17 @@
                         <div style="margin-bottom: 10px;">
                             <label>White (AI):</label>
                             <select id="white-algo" class="custom-select">
-                                <option value="alphabeta">Alpha-Beta Pruning</option>
-                                <option value="mcts">MCTS</option>
-                                <option value="genetic">Alpha-Beta Pruning + Genetic</option>
+                                <option value="alphabeta">Alpha-Beta (Tactical)</option>
+                                <option value="mcts">MCTS (Strategic)</option>
+                                <option value="genetic">Alpha-Beta + Genetic (Advanced)</option>
                             </select>
                         </div>
                         <div>
                             <label>Black (AI):</label>
                             <select id="black-algo" class="custom-select">
-                                <option value="mcts">MCTS</option>
-                                <option value="alphabeta" selected>Alpha-Beta Pruning</option>
-                                <option value="genetic">Alpha-Beta Pruning + Genetic</option>
+                                <option value="mcts">MCTS (Strategic)</option>
+                                <option value="alphabeta" selected>Alpha-Beta (Tactical)</option>
+                                <option value="genetic">Alpha-Beta + Genetic (Advanced)</option>
                             </select>
                         </div>
                     </div>
@@ -97,6 +97,10 @@
                         <button class="bot-v-bot primary-btn" title="Watch AI play itself">
                             <i class="fas fa-robot"></i> Bot vs Bot
                         </button>
+                        
+                        <button id="btn-stop" class="danger-btn" style="display:none; background: #ef4444; color: white; border: none; padding: 12px 16px; border-radius: 12px; grid-column: span 2; font-weight: 600; cursor: pointer;">
+                            <i class="fas fa-stop"></i> Stop AI
+                        </button>
                     </div>
                 </div>
 
@@ -110,7 +114,7 @@
         </main>
 
         <footer>
-            <p>&copy; 2026 GrandMaster AI System &bull; Engine powered by <strong style="color: var(--primary-color);">Group 9 (Alpha-Beta + Genetic)</strong></p>
+            <p>&copy; 2026 GrandMaster AI System &bull; Engine powered by <strong style="color: var(--primary);">Group 9 (Alpha-Beta, MCTS & Genetic)</strong></p>
         </footer>
     </div>
 

@@ -1,13 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     let board = null; 
     const game = new Chess(); 
-    const moveHistory = document.getElementById('move-history'); 
-    let moveCount = 1; 
+    const moveHistoryContainer = document.getElementById('move-history'); 
     let userColor = 'w'; 
     let isAiThinking = false;
     let pendingMove = null; 
     let botIsRunning = false;
     const promotionModal = document.getElementById('promotion-modal');
+
+    // --- Quản lý lịch sử nước đi ---
+    let gameHistoryFEN = [game.fen()];
+    let gameHistorySAN = [];
+    let currentHistoryIndex = 0;
 
     // --- Xử lý Giao diện Setup ---
     const gameModeSelect = document.getElementById('game-mode');
@@ -32,9 +36,134 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Xử lý Ghi log và Quay lui lịch sử (Jump to Move) ---
+    const renderMoveLog = () => {
+        moveHistoryContainer.innerHTML = '';
+        if (gameHistorySAN.length === 0) {
+            moveHistoryContainer.innerHTML = '<div class="history-placeholder">Waiting for the first move...</div>';
+            return;
+        }
+
+        let row;
+        gameHistorySAN.forEach((move, index) => {
+            if (index % 2 === 0) {
+                row = document.createElement('div');
+                row.className = 'move-row';
+                const num = document.createElement('span');
+                num.className = 'move-number';
+                num.textContent = `${Math.floor(index / 2) + 1}.`;
+                row.appendChild(num);
+                moveHistoryContainer.appendChild(row);
+            }
+            const moveSpan = document.createElement('span');
+            moveSpan.className = (index % 2 === 0) ? 'white-move' : 'black-move';
+            
+            // Highlight nước đi hiện tại đang xem
+            if (index + 1 === currentHistoryIndex) {
+                moveSpan.style.color = 'var(--primary)';
+                moveSpan.style.fontWeight = 'bold';
+            }
+            
+            moveSpan.textContent = move;
+            moveSpan.style.cursor = 'pointer';
+            // Click vào nước đi để lùi lịch sử
+            moveSpan.addEventListener('click', () => jumpToMove(index + 1));
+            row.appendChild(moveSpan);
+        });
+        moveHistoryContainer.scrollTop = moveHistoryContainer.scrollHeight;
+    };
+
+    const jumpToMove = (index) => {
+        // Dừng bot nếu đang đánh nhau
+        if (botIsRunning) {
+            botIsRunning = false;
+            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
+            document.getElementById('btn-stop').style.display = 'none';
+        }
+
+        currentHistoryIndex = index;
+        game.reset();
+        for (let i = 0; i < index; i++) {
+            game.move(gameHistorySAN[i]);
+        }
+        board.position(game.fen());
+        renderMoveLog();
+        checkTurnStatus();
+    };
+
+    const handleNewMove = (move) => {
+        // Nếu người chơi đi nhánh mới từ quá khứ, cắt bỏ các nước tương lai
+        if (currentHistoryIndex < gameHistorySAN.length) {
+            gameHistoryFEN = gameHistoryFEN.slice(0, currentHistoryIndex + 1);
+            gameHistorySAN = gameHistorySAN.slice(0, currentHistoryIndex);
+        }
+        gameHistoryFEN.push(game.fen());
+        gameHistorySAN.push(move.san);
+        currentHistoryIndex++;
+        renderMoveLog();
+        checkTurnStatus();
+    };
+
+    const updateStatus = (text, type) => {
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.querySelector('.status-dot');
+        statusText.textContent = text;
+        
+        if (type === 'warning') {
+            statusDot.style.backgroundColor = '#f59e0b';
+            statusDot.style.boxShadow = '0 0 8px #f59e0b';
+        } else if (type === 'error') {
+            statusDot.style.backgroundColor = '#ef4444';
+            statusDot.style.boxShadow = '0 0 8px #ef4444';
+        } else if (type === 'success') {
+            statusDot.style.backgroundColor = '#22c55e';
+            statusDot.style.boxShadow = '0 0 8px #22c55e';
+        }
+    };
+
+    const checkTurnStatus = () => {
+        if (game.game_over()) {
+            handleGameOver();
+            return;
+        }
+        
+        if (botIsRunning || gameModeSelect.value === 'eve') {
+            const currentTurnAlgo = game.turn() === 'w' ? 'White AI' : 'Black AI';
+            updateStatus(`Bot vs Bot: ${currentTurnAlgo} thinking...`, "warning");
+        } else {
+            const isUserTurn = game.turn() === userColor;
+            const turnText = isUserTurn ? `Your Turn (${userColor === 'w' ? 'White' : 'Black'})` : "AI's Turn (Thinking)";
+            updateStatus(turnText, isUserTurn ? "success" : "warning");
+        }
+    };
+
+    const handleGameOver = () => {
+        let status = "Game Over";
+        let winner = "";
+
+        if (game.in_checkmate()) {
+            winner = game.turn() === 'w' ? "Black" : "White";
+            status = `CHECKMATE! Winner: ${winner}`;
+        } else if (game.in_draw()) {
+            status = "Game Over: DRAW!";
+            if (game.in_stalemate()) status += " (Stalemate)";
+            else if (game.insufficient_material()) status += " (Insufficient Material)";
+            else if (game.in_threefold_repetition()) status += " (Repetition)";
+        }
+
+        updateStatus(status, "error");
+        
+        if (botIsRunning) {
+            botIsRunning = false;
+            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
+            document.getElementById('btn-stop').style.display = 'none';
+        }
+        
+        setTimeout(() => alert(status), 500);
+    };
+
     // --- Lõi AI xử lý nước đi ---
     const makeComputerMove = async () => {
-        // Fix double trigger: Chặn handleGameOver ở đây, nhường cho checkTurnStatus
         if (game.game_over() || isAiThinking) {
             return -1;
         }
@@ -52,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const currentDepth = depthSlider ? parseInt(depthSlider.value) : 3;
-            // Gửi CẢ algo và depth để chiều lòng cả 2 người
             const response = await fetch('/move', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -82,9 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (move !== null) {
                 board.position(game.fen());
-                recordMove(move.san, moveCount);
-                moveCount++;
-                checkTurnStatus();
+                handleNewMove(move); // Ghi đè bằng hàm lưu lịch sử mới
             }
 
             isAiThinking = false;
@@ -98,90 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Các hàm tiện ích ---
-    const recordMove = (move, count) => {
-        if (count === 1) moveHistory.innerHTML = ''; 
-
-        const isWhite = count % 2 === 1;
-        const moveNumber = Math.ceil(count / 2);
-
-        if (isWhite) {
-            const moveRow = document.createElement('div');
-            moveRow.className = 'move-row';
-            moveRow.innerHTML = `
-                <span class="move-number">${moveNumber}.</span>
-                <span class="white-move">${move}</span>
-            `;
-            moveHistory.appendChild(moveRow);
-        } else {
-            const lastRow = moveHistory.lastElementChild;
-            if (lastRow) {
-                const blackMove = document.createElement('span');
-                blackMove.className = 'black-move';
-                blackMove.textContent = move;
-                lastRow.appendChild(blackMove);
-            }
-        }
-        moveHistory.scrollTop = moveHistory.scrollHeight;
-    };
-
-    const checkTurnStatus = () => {
-        if (game.game_over()) {
-            handleGameOver();
-            return;
-        }
-        
-        if (botIsRunning || gameModeSelect.value === 'eve') {
-            const currentTurnAlgo = game.turn() === 'w' ? 'White AI' : 'Black AI';
-            updateStatus(`Bot vs Bot: ${currentTurnAlgo} thinking...`, "warning");
-        } else {
-            const isUserTurn = game.turn() === userColor;
-            const turnText = isUserTurn ? `Your Turn (${userColor === 'w' ? 'White' : 'Black'})` : "AI's Turn (Thinking)";
-            updateStatus(turnText, isUserTurn ? "success" : "warning");
-        }
-    };
-
-    const updateStatus = (text, type) => {
-        const statusText = document.getElementById('status-text');
-        const statusDot = document.querySelector('.status-dot');
-        statusText.textContent = text;
-        
-        if (type === 'warning') {
-            statusDot.style.backgroundColor = '#f59e0b';
-            statusDot.style.boxShadow = '0 0 8px #f59e0b';
-        } else if (type === 'error') {
-            statusDot.style.backgroundColor = '#ef4444';
-            statusDot.style.boxShadow = '0 0 8px #ef4444';
-        } else if (type === 'success') {
-            statusDot.style.backgroundColor = '#22c55e';
-            statusDot.style.boxShadow = '0 0 8px #22c55e';
-        }
-    };
-
-    const handleGameOver = () => {
-        let status = "Game Over";
-        let winner = "";
-
-        if (game.in_checkmate()) {
-            winner = game.turn() === 'w' ? "Black" : "White";
-            status = `CHECKMATE! Winner: ${winner}`;
-        } else if (game.in_draw()) {
-            status = "Game Over: DRAW!";
-            if (game.in_stalemate()) status += " (Stalemate)";
-            else if (game.insufficient_material()) status += " (Insufficient Material)";
-            else if (game.in_threefold_repetition()) status += " (Repetition)";
-        }
-
-        updateStatus(status, "error");
-        setTimeout(() => alert(status), 500);
-    };
-
-    // --- Tương tác Bàn cờ ---
+    // --- Tương tác Bàn cờ (Highlight & Drag-Drop của bạn) ---
     const onDragStart = (source, piece) => {
         if (game.game_over() || botIsRunning) return false;
         if (game.turn() !== userColor) return false;
         
-        // Cập nhật luật switch-sides của đồng đội
         const canDrag = (userColor === 'w' && piece.search(/^w/) !== -1) ||
                         (userColor === 'b' && piece.search(/^b/) !== -1);
         
@@ -236,14 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const move = game.move({ from: source, to: target, promotion: 'q' });
-        recordMove(move.san, moveCount);
-        moveCount++;
-        
-        checkTurnStatus(); 
+        handleNewMove(move);
         window.setTimeout(makeComputerMove, 250);
     };
 
-    // --- Promotion Modal Logic ---
+    // --- Promotion Modal Logic (Của bạn) ---
     const showPromotionModal = (source, target) => {
         pendingMove = { source, target };
         const color = game.turn(); 
@@ -261,10 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (move === null) return;
 
         board.position(game.fen());
-        recordMove(move.san, moveCount);
-        moveCount++;
-        
-        checkTurnStatus();
+        handleNewMove(move);
         window.setTimeout(makeComputerMove, 250);
     };
 
@@ -296,12 +337,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     board = Chessboard('board', boardConfig);
 
-    // --- Xử lý Nút Bấm Gộp ---
+    // --- Cấu hình các nút điều khiển ---
     document.getElementById('start-btn').addEventListener('click', () => {
         game.reset();
         board.start();
-        moveHistory.innerHTML = '<div class="history-placeholder">Waiting for the first move...</div>';
-        moveCount = 1;
+        
+        // Reset lịch sử
+        gameHistoryFEN = [game.fen()];
+        gameHistorySAN = [];
+        currentHistoryIndex = 0;
+        renderMoveLog();
+        
         userColor = 'w';
         isAiThinking = false;
         pendingMove = null;
@@ -309,7 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (botIsRunning) {
             botIsRunning = false;
-            document.querySelector('.bot-v-bot').innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
+            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
+            document.getElementById('btn-stop').style.display = 'none';
         }
         checkTurnStatus();
     });
@@ -328,35 +375,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Cập nhật Bot vs Bot với nút Stop riêng ---
     const botVBot = async () => {
         if (botIsRunning) return;
         botIsRunning = true;
         
+        // Đổi nút hiển thị
+        document.querySelector('.bot-v-bot').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'inline-flex';
+
         // Tự động chuyển UI sang chế độ EvE
         gameModeSelect.value = 'eve';
         gameModeSelect.dispatchEvent(new Event('change'));
-
-        const botBtn = document.querySelector('.bot-v-bot');
         
         while (botIsRunning) {
             const result = await makeComputerMove();
             if (result !== 0) {
-                botIsRunning = false;
-                botBtn.innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
                 break;
             }
             await new Promise(resolve => setTimeout(resolve, 600));
         }
+
+        botIsRunning = false;
+        document.querySelector('.bot-v-bot').style.display = 'inline-flex';
+        document.getElementById('btn-stop').style.display = 'none';
     };
 
-    const botBtn = document.querySelector('.bot-v-bot');
-    botBtn.addEventListener('click', () => {
-        if (botIsRunning) {
-            botIsRunning = false;
-            botBtn.innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
-        } else {
-            botBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Bot vs Bot';
-            botVBot();
-        }
+    document.querySelector('.bot-v-bot').addEventListener('click', botVBot);
+
+    document.getElementById('btn-stop').addEventListener('click', () => {
+        botIsRunning = false;
+        document.querySelector('.bot-v-bot').style.display = 'inline-flex';
+        document.getElementById('btn-stop').style.display = 'none';
+        checkTurnStatus();
     });
 });

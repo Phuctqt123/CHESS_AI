@@ -374,15 +374,33 @@ button {
     opacity: 0.8;
 }
 
+/* === BẮT ĐẦU: Phần tích hợp tính năng Hover của Đồng Đội === */
 .white-move, .black-move {
     color: var(--text-main);
     font-weight: 500;
     font-size: 0.95rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
 }
 
 .black-move {
     color: var(--text-muted);
 }
+
+.white-move:hover, .black-move:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #60a5fa; /* Màu xanh lơ nhạt báo hiệu có thể click */
+}
+
+/* Nước đi đang được chọn xem lại */
+.active-move {
+    background: #3b82f6 !important;
+    color: white !important;
+    font-weight: 600 !important;
+}
+/* === KẾT THÚC: Phần tích hợp === */
 
 .move-history::-webkit-scrollbar {
     width: 4px;
