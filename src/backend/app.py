@@ -6,13 +6,11 @@ from flask_cors import CORS
 import webbrowser
 import threading
 
+# Gọi đủ cả 3 thuật toán từ engine
 from .engine import get_best_move_alphabeta, get_best_move_mcts, get_best_move_genetic
 
 # Configure absolute paths for static and template folders
 base_dir = os.path.dirname(os.path.abspath(__file__))
-# Base dir is /src/backend
-# Templates is /src/frontend/templates
-# Static is /src/frontend/static
 template_dir = os.path.join(base_dir, '..', 'frontend', 'templates')
 static_dir = os.path.join(base_dir, '..', 'frontend', 'static')
 
@@ -32,18 +30,19 @@ def index():
 def get_move():
     data = request.get_json()
     fen = data.get('fen')
-    algo = data.get('algo', 'alphabeta')
     
-    # Lấy thông tin thuật toán từ frontend (mặc định là alphabeta nếu ko có)
+    # Hứng cả 2 biến từ Frontend
     algo = data.get('algo', 'alphabeta')
+    depth = int(data.get('depth', 3))
 
-    # Gọi đúng hàm dựa trên lựa chọn
+    # Điều phối logic chạy dựa trên Frontend
     if algo == 'mcts':
-        move = get_best_move_mcts(fen, iterations=150)
+        # MCTS không dùng depth, nên ta biến depth thành số vòng lặp (1 depth = 50 iterations)
+        move = get_best_move_mcts(fen, iterations=depth * 50)
     elif algo == 'genetic':
-        move = get_best_move_genetic(fen, depth=5)
+        move = get_best_move_genetic(fen, depth=depth)
     else: # Mặc định là alphabeta
-        move = get_best_move_alphabeta(fen, depth=3)
+        move = get_best_move_alphabeta(fen, depth=depth)
 
     return jsonify({"move": move})
 

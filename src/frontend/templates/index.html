@@ -37,7 +37,7 @@
 
             <aside class="side-panel">
                 <div class="card control-card">
-                    <h3><i class="fas fa-gamepad"></i> Game Settings</h3>
+                    <h3><i class="fas fa-sliders-h"></i> Engine Settings</h3>
                     
                     <div class="setup-group">
                         <label>Game Mode:</label>
@@ -48,11 +48,11 @@
                     </div>
 
                     <div id="pve-setup" class="setup-subgroup">
-                        <label>Difficulty:</label>
+                        <label>AI Algorithm:</label>
                         <select id="difficulty-select" class="custom-select">
                             <option value="mcts">Easy (MCTS)</option>
-                            <option value="alphabeta">Intermediate (Alpha-Beta Pruning)</option>
-                            <option value="genetic">Advanced (Alpha-Beta Pruning + Genetic)</option>
+                            <option value="alphabeta" selected>Intermediate (Alpha-Beta)</option>
+                            <option value="genetic">Advanced (Alpha-Beta + Genetic)</option>
                         </select>
                     </div>
 
@@ -69,18 +69,33 @@
                             <label>Black (AI):</label>
                             <select id="black-algo" class="custom-select">
                                 <option value="mcts">MCTS</option>
-                                <option value="alphabeta">Alpha-Beta Pruning</option>
+                                <option value="alphabeta" selected>Alpha-Beta Pruning</option>
                                 <option value="genetic">Alpha-Beta Pruning + Genetic</option>
                             </select>
                         </div>
                     </div>
 
+                    <div class="setting-item" style="margin-top: 15px;">
+                        <div class="setting-label">
+                            <label for="depth-slider">Search Depth: <span id="depth-value">3</span></label>
+                            <i class="fas fa-info-circle info-icon" title="Higher depth means stronger play but takes longer to compute."></i>
+                        </div>
+                        <input type="range" id="depth-slider" min="1" max="10" value="3" class="slider" />
+                        <p class="setting-description" style="margin-top: 5px;">Higher depth = Smarter but Slower moves.</p>
+                    </div>
+
                     <div class="button-grid" style="margin-top: 20px;">
-                        <button id="start-btn" class="primary-btn play-again">
-                            <i class="fas fa-play"></i> Start / Reset
+                        <button id="start-btn" class="primary-btn" title="Restart Game">
+                            <i class="fas fa-redo"></i> Reset Match
                         </button>
-                        <button class="flip-board secondary-btn">
-                            <i class="fas fa-exchange-alt"></i> Flip Board
+                        <button class="flip-board secondary-btn" title="Flip Board perspective">
+                            <i class="fas fa-sync-alt"></i> Flip View
+                        </button>
+                        <button class="switch-sides secondary-btn" title="Play for the other side">
+                            <i class="fas fa-exchange-alt"></i> Switch Sides
+                        </button>
+                        <button class="bot-v-bot primary-btn" title="Watch AI play itself">
+                            <i class="fas fa-robot"></i> Bot vs Bot
                         </button>
                     </div>
                 </div>
@@ -95,10 +110,11 @@
         </main>
 
         <footer>
-            <p>&copy; 2026 GrandMaster AI System &bull; Engine powered by <strong style="color: var(--primary-color);">Group 9</strong></p>
+            <p>&copy; 2026 GrandMaster AI System &bull; Engine powered by <strong style="color: var(--primary-color);">Group 9 (Alpha-Beta + Genetic)</strong></p>
         </footer>
     </div>
-    </div> <div id="promotion-modal" class="modal">
+
+    <div id="promotion-modal" class="modal">
         <div class="modal-content">
             <h3>Choose Promotion</h3>
             <div class="promotion-options">
