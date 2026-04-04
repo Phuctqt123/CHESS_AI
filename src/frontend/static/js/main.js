@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveHistory = document.getElementById('move-history'); // Get move history container
     let moveCount = 1; // Initialize the move count
     let userColor = 'w'; // Initialize the user's color as white
+    let pendingMove = null; // Store pending promotion move
+    const promotionModal = document.getElementById('promotion-modal');
 
     // Function to make a move for the computer via API
     const makeComputerMove = async () => {
@@ -35,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const moveObj = {
                 from: data.move.substring(0, 2),
                 to: data.move.substring(2, 4),
-                promotion: 'q'
+                promotion: data.move.length > 4 ? data.move.substring(4, 5) : 'q'
             };
 
             const move = game.move(moveObj);
@@ -132,19 +134,95 @@ document.addEventListener('DOMContentLoaded', () => {
         // User can only drag on their turn
         if (game.turn() !== userColor) return false;
         // Allow the user to drag only their own pieces
-        return (userColor === 'w' && piece.search(/^w/) !== -1) ||
-               (userColor === 'b' && piece.search(/^b/) !== -1);
+        const canDrag = (userColor === 'w' && piece.search(/^w/) !== -1) ||
+                        (userColor === 'b' && piece.search(/^b/) !== -1);
+        
+        if (canDrag) {
+            onMouseoverSquare(source, piece);
+        }
+        
+        return canDrag;
     };
+
+    // --- Highlighting Logic ---
+    const removeHighlights = () => {
+        const squares = document.querySelectorAll('#board .square-55d63');
+        squares.forEach(sq => {
+            sq.classList.remove('highlight-move');
+            sq.classList.remove('highlight-capture');
+            sq.classList.remove('highlight-source');
+        });
+    };
+
+    const highlightSquare = (square, isCapture) => {
+        const sqElement = document.querySelector('#board .square-' + square);
+        if (sqElement) {
+            sqElement.classList.add(isCapture ? 'highlight-capture' : 'highlight-move');
+        }
+    };
+
+    const onMouseoverSquare = (square, piece) => {
+        // Exit if it's not the user's turn
+        if (game.turn() !== userColor) return;
+
+        // Get list of possible moves for this square
+        const moves = game.moves({
+            square: square,
+            verbose: true
+        });
+
+        // Exit if there are no moves available for this square
+        if (moves.length === 0) return;
+
+        // Highlight the source square
+        const sourceSq = document.querySelector('#board .square-' + square);
+        if (sourceSq) sourceSq.classList.add('highlight-source');
+
+        // Highlight the destination squares
+        for (let i = 0; i < moves.length; i++) {
+            highlightSquare(moves[i].to, moves[i].flags.includes('c'));
+        }
+    };
+
+    const onMouseoutSquare = (square, piece) => {
+        removeHighlights();
+    };
+    // --- End Highlighting Logic ---
+
+    // Function to handle a piece drop on the board
 
     // Function to handle a piece drop on the board
     const onDrop = (source, target) => {
+        removeHighlights();
+        
+        // Check if move is legal
+        const moveAttempt = game.move({
+            from: source,
+            to: target,
+            promotion: 'q' // Temporary to check legality
+        });
+
+        if (moveAttempt === null) return 'snapback';
+        
+        // Undo the temporary move
+        game.undo();
+
+        // Check for promotion
+        const piece = game.get(source);
+        const isPromotion = piece && piece.type === 'p' && 
+                          ((piece.color === 'w' && target[1] === '8') || 
+                           (piece.color === 'b' && target[1] === '1'));
+
+        if (isPromotion) {
+            showPromotionModal(source, target);
+            return 'snapback';
+        }
+
         const move = game.move({
             from: source,
             to: target,
             promotion: 'q',
         });
-
-        if (move === null) return 'snapback';
 
         recordMove(move.san, moveCount);
         moveCount++;
@@ -152,6 +230,52 @@ document.addEventListener('DOMContentLoaded', () => {
         checkTurnStatus(); // Update to "AI's Turn"
         window.setTimeout(makeComputerMove, 250);
     };
+
+    const showPromotionModal = (source, target) => {
+        pendingMove = { source, target };
+        
+        // Update images based on user color
+        const color = game.turn(); // 'w' or 'b'
+        const pieceNames = { 'q': 'Queen', 'r': 'Rook', 'b': 'Bishop', 'n': 'Knight' };
+        
+        Object.keys(pieceNames).forEach(p => {
+            const img = document.getElementById(`promo-${p}`);
+            if (img) {
+                img.src = `/static/img/chesspieces/wikipedia/${color}${p.toUpperCase()}.png`;
+            }
+        });
+        
+        promotionModal.style.display = 'flex';
+    };
+
+    const handlePromotion = (source, target, piece) => {
+        const move = game.move({
+            from: source,
+            to: target,
+            promotion: piece
+        });
+
+        if (move === null) return;
+
+        board.position(game.fen());
+        recordMove(move.san, moveCount);
+        moveCount++;
+        
+        checkTurnStatus();
+        window.setTimeout(makeComputerMove, 250);
+    };
+
+    // Add listeners to promotion options
+    document.querySelectorAll('.promotion-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const piece = option.getAttribute('data-piece');
+            if (pendingMove) {
+                handlePromotion(pendingMove.source, pendingMove.target, piece);
+                pendingMove = null;
+                promotionModal.style.display = 'none';
+            }
+        });
+    });
 
     // Function to handle the end of a piece snap animation
     const onSnapEnd = () => {
@@ -166,6 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
         onDragStart,
         onDrop,
         onSnapEnd,
+        onMouseoverSquare,
+        onMouseoutSquare,
         // Updated path for pieces
         pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png',
         moveSpeed: 'fast',
@@ -181,6 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
         moveHistory.innerHTML = '<div class="history-placeholder">Waiting for the first move...</div>';
         moveCount = 1;
         userColor = 'w';
+        pendingMove = null;
+        promotionModal.style.display = 'none';
         checkTurnStatus();
     });
 
