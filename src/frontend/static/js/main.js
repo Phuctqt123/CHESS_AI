@@ -6,23 +6,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let moveCount = 1; // Initialize the move count
     let userColor = 'w'; // Initialize the user's color as white
     let pendingMove = null; // Store pending promotion move
+    let botIsRunning = false;
     const promotionModal = document.getElementById('promotion-modal');
+    const depthSlider = document.getElementById('depth-slider');
+    const depthValueDisplay = document.getElementById('depth-value');
+
+    // Update depth display when slider moves
+    if (depthSlider && depthValueDisplay) {
+        depthSlider.addEventListener('input', () => {
+            depthValueDisplay.textContent = depthSlider.value;
+        });
+    }
 
     // Function to make a move for the computer via API
     const makeComputerMove = async () => {
         if (game.game_over()) {
             handleGameOver();
-            return;
+            return 1;
         }
 
         try {
+            const currentDepth = depthSlider ? parseInt(depthSlider.value) : 3;
             const response = await fetch('/move', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    fen: game.fen()
+                    fen: game.fen(),
+                    depth: currentDepth
                 })
             });
 
@@ -31,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!data || !data.move) {
                 console.error("Invalid API response:", data);
                 updateStatus("AI Error", "error");
-                return;
+                return -1;
             }
 
             const moveObj = {
@@ -44,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (move === null) {
                 console.error("Invalid move from API:", data.move);
-                return;
+                return -2;
             }
 
             board.position(game.fen());
@@ -52,10 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
             moveCount++;
             
             checkTurnStatus();
+            return 0;
 
         } catch (error) {
             console.error("API error:", error);
             updateStatus("Connection Lost", "error");
+            return -3;
         }
     };
 
@@ -310,6 +324,13 @@ document.addEventListener('DOMContentLoaded', () => {
         pendingMove = null;
         promotionModal.style.display = 'none';
         checkTurnStatus();
+        
+        // Stop bot if it was running
+        if (botIsRunning) {
+            botIsRunning = false;
+            const botBtn = document.querySelector('.bot-v-bot');
+            if (botBtn) botBtn.innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
+        }
     });
 
 
@@ -324,6 +345,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // If it's now the computer's turn after flipping
         if (game.turn() !== userColor) {
             makeComputerMove();
+        }
+    });
+
+    const botVBot = async () => {
+        if (botIsRunning) return;
+
+        botIsRunning = true;
+        const botBtn = document.querySelector('.bot-v-bot');
+        
+        while (botIsRunning) {
+            const result = await makeComputerMove();
+            if (result !== 0) {
+                botIsRunning = false;
+                botBtn.innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
+                break;
+            }
+
+            // delay to see the moves being made
+            await new Promise(resolve => setTimeout(resolve, 600));
+        }
+    };
+
+    const botBtn = document.querySelector('.bot-v-bot');
+    botBtn.addEventListener('click', () => {
+        if (botIsRunning) {
+            botIsRunning = false;
+            botBtn.innerHTML = '<i class="fas fa-robot"></i> Bot vs Bot';
+        } else {
+            botBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Bot vs Bot';
+            botVBot();
         }
     });
 
