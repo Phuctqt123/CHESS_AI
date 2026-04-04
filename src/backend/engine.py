@@ -38,7 +38,6 @@ def get_best_move(fen, iterations=800):
 
         while node:
             node.visits += 1
-            # Cập nhật win dựa trên kết quả và lượt đi (trắng/đen)
             if (result == "1-0" and node.board.turn == chess.BLACK) or \
                     (result == "0-1" and node.board.turn == chess.WHITE):
                 node.wins += 1
