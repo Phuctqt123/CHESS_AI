@@ -143,7 +143,6 @@ def eval_board(board: chess.Board):
         score += sign * king_safety_weight * king_safety
 
     eval_cache[key] = score
-
     return score
 
 
@@ -268,10 +267,12 @@ def get_best_move_mtcs(fen, iterations=800):
         if not temp_board.is_game_over():
             for move in temp_board.legal_moves:
                 temp_board.push(move)
-                node.children[move] = MCTSNode(temp_board.copy(), parent=node)
+                new_node = MCTSNode(temp_board.copy(), parent=node)
+                new_node.wins = eval_board(temp_board) / 1000.0
+                node.children[move] = new_node
                 temp_board.pop()
 
-        result = simulate_random_game(temp_board)
+        result = simulate_smart_game(temp_board)
 
         while node:
             node.visits += 1
@@ -286,11 +287,25 @@ def get_best_move_mtcs(fen, iterations=800):
     return best_move.uci()
 
 
-def simulate_random_game(board):
+def simulate_smart_game(board):
     temp_board = board.copy()
-    while not temp_board.is_game_over():
-        move = random.choice(list(temp_board.legal_moves))
+    limit = 30
+
+    while not temp_board.is_game_over() and limit > 0:
+        legal_moves = list(temp_board.legal_moves)
+
+        if len(legal_moves) > 3:
+            legal_moves.sort(key=lambda m: (temp_board.push(m),
+                                            eval_board(temp_board),
+                                            temp_board.pop())[1],
+                             reverse=(temp_board.turn == chess.WHITE))
+            move = random.choice(legal_moves[:3])
+        else:
+            move = random.choice(legal_moves)
+
         temp_board.push(move)
+        limit -= 1
+
     return temp_board.result()
 
 def get_best_move(fen, mode="alpha_beta", depth=3, iterations=800):

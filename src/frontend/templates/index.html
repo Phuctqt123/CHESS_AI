@@ -36,50 +36,51 @@
             </section>
 
             <aside class="side-panel">
-                    <div class="card settings-card">
-                        <h3><i class="fas fa-robot"></i> AI Configuration</h3>
-
-                        <div class="setting-group">
-                            <label><b>White:</b></label>
-                            <select id="white-algo" class="select-style">
-                                <option value="none">Player (Human)</option>
-                                <option value="alpha_beta">Alpha-Beta (Tactical)</option>
-                                <option value="mcts">MCTS (Strategic)</option>
-                            </select>
-                            <div class="slider-container">
-                                <div class="slider-label-row">
-                                    <span id="white-val-label">Depth: 3</span>
-                                </div>
-                                <input type="range" id="white-slider" min="1" max="10" value="3" class="full-width-slider">
-                            </div>
-                        </div>
-
-                        <div class="setting-group">
-                            <label><b>Black:</b></label>
-                            <select id="black-algo" class="select-style">
-                                <option value="alpha_beta">Alpha-Beta (Tactical)</option>
-                                <option value="mcts">MCTS (Strategic)</option>
-                                <option value="none">Player (Human)</option>
-                            </select>
-                            <div class="slider-container">
-                                <div class="slider-label-row">
-                                    <span id="black-val-label">Depth: 4</span>
-                                </div>
-                                <input type="range" id="black-slider" min="1" max="10" value="4" class="full-width-slider">
-                            </div>
+                <div class="card settings-card">
+                    <h3><i class="fas fa-robot"></i> AI Configuration</h3>
+                    <div class="setting-group">
+                        <label><b>White:</b></label>
+                        <select id="white-algo" class="select-style">
+                            <option value="none">Player (Human)</option>
+                            <option value="alpha_beta">Alpha-Beta (Tactical)</option>
+                            <option value="mcts">MCTS (Strategic)</option>
+                        </select>
+                        <div class="slider-container">
+                            <span id="white-val-label">Depth: 3</span>
+                            <input type="range" id="white-slider" min="1" max="10" value="3" class="full-width-slider">
                         </div>
                     </div>
-
-                    <div class="card control-card">
-                        <h3><i class="fas fa-gamepad"></i> Game Controls</h3>
-                        <div class="button-grid">
-                            <button id="btn-restart" class="primary-btn"><i class="fas fa-redo"></i> Restart</button>
-                            <button id="btn-switch" class="secondary-btn"><i class="fas fa-exchange-alt"></i> Switch Sides</button>
-                            <button id="btn-ai-vs-ai" class="accent-btn"><i class="fas fa-swords"></i> AI vs AI</button>
-                            <button id="btn-stop" class="danger-btn" style="display:none;"><i class="fas fa-stop"></i> Stop AI</button>
+                    <div class="setting-group">
+                        <label><b>Black:</b></label>
+                        <select id="black-algo" class="select-style">
+                            <option value="alpha_beta">Alpha-Beta (Tactical)</option>
+                            <option value="mcts">MCTS (Strategic)</option>
+                            <option value="none">Player (Human)</option>
+                        </select>
+                        <div class="slider-container">
+                            <span id="black-val-label">Depth: 4</span>
+                            <input type="range" id="black-slider" min="1" max="10" value="4" class="full-width-slider">
                         </div>
                     </div>
-                </aside>
+                </div>
+
+                <div class="card history-card">
+                    <h3><i class="fas fa-list-ol"></i> Move History</h3>
+                    <div id="move-history" class="move-history">
+                        <div class="history-placeholder">Waiting for move...</div>
+                    </div>
+                </div>
+
+                <div class="card control-card">
+                    <h3><i class="fas fa-gamepad"></i> Game Controls</h3>
+                    <div class="button-grid">
+                        <button id="btn-restart" class="primary-btn"><i class="fas fa-redo"></i> Restart</button>
+                        <button id="btn-switch" class="secondary-btn"><i class="fas fa-exchange-alt"></i> Switch Sides</button>
+                        <button id="btn-ai-vs-ai" class="accent-btn"><i class="fas fa-swords"></i> AI vs AI</button>
+                        <button id="btn-stop" class="danger-btn" style="display:none;"><i class="fas fa-stop"></i> Stop AI</button>
+                    </div>
+                </div>
+            </aside>
         </main>
 
         <footer>

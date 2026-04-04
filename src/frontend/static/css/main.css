@@ -324,3 +324,32 @@ footer {
 header { animation-delay: 0.1s; }
 main { animation-delay: 0.2s; }
 footer { animation-delay: 0.3s; }
+.move-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.move-item {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.move-item:hover {
+    background: rgba(255,255,255,0.2);
+    color: #60a5fa;
+}
+
+.move-item.active-move {
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+}
+
+.move-number {
+    color: #94a3b8;
+    font-size: 0.9em;
+}
