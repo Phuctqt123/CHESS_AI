@@ -1,97 +1,159 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/chessboard.min.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/main.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/vendor/chessboard.min.css') }}"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
     <title>GrandMaster AI | Professional Chess Engine</title>
-</head>
+  </head>
 
-<body>
+  <body>
     <div class="app-background"></div>
     <div class="glass-container">
-        <header>
-            <div class="logo">
-                <i class="fas fa-chess-knight"></i>
-                <div class="brand">
-                    <h1>GrandMaster AI</h1>
-                    <span class="tagline">Neural Strategy Engine v2.0</span>
-                </div>
+      <header>
+        <div class="logo">
+          <i class="fas fa-chess-knight"></i>
+          <div class="brand">
+            <h1>GrandMaster AI</h1>
+            <span class="tagline">Neural Strategy Engine v2.0</span>
+          </div>
+        </div>
+        <div class="status-badge" id="status-badge">
+          <span class="status-dot"></span>
+          <span id="status-text">Your Turn (White)</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="board-container">
+          <div class="board" id="board"></div>
+        </section>
+
+        <aside class="side-panel">
+          <div class="card settings-card">
+            <h3><i class="fas fa-cog"></i> Engine Settings</h3>
+            <div class="setting-item">
+              <div class="setting-label">
+                <label for="depth-slider"
+                  >Search Depth: <span id="depth-value">3</span></label
+                >
+                <i
+                  class="fas fa-info-circle info-icon"
+                  title="Depth determines how many moves ahead the AI looks. Higher depth means stronger play but takes longer to compute."
+                ></i>
+              </div>
+              <input
+                type="range"
+                id="depth-slider"
+                min="1"
+                max="10"
+                value="3"
+                class="slider"
+              />
+              <p class="setting-description">
+                Higher depth = Smarter but Slower moves.
+              </p>
             </div>
-            <div class="status-badge" id="status-badge">
-                <span class="status-dot"></span>
-                <span id="status-text">Your Turn (White)</span>
+          </div>
+
+          <div class="card control-card">
+            <h3><i class="fas fa-sliders-h"></i> Commands</h3>
+            <div class="button-grid">
+              <button class="play-again primary-btn" title="Restart Game">
+                <i class="fas fa-redo"></i> Reset Match
+              </button>
+              <button class="flip-board secondary-btn" title="Switch Sides">
+                <i class="fas fa-exchange-alt"></i> Flip View
+              </button>
+              <button
+                class="bot-v-bot primary-btn"
+                title="Watch AI play itself"
+              >
+                <i class="fas fa-robot"></i> Bot vs Bot
+              </button>
             </div>
-        </header>
+          </div>
 
-        <main>
-            <section class="board-container">
-                <div class="board" id="board"></div>
-            </section>
+          <div class="card history-card">
+            <h3><i class="fas fa-history"></i> Move History</h3>
+            <div id="move-history" class="move-history">
+              <div class="history-placeholder">
+                Waiting for the first move...
+              </div>
+            </div>
+          </div>
+        </aside>
+      </main>
 
-            <aside class="side-panel">
-                <div class="card control-card">
-                    <h3><i class="fas fa-sliders-h"></i> Commands</h3>
-                    <div class="button-grid">
-                        <button class="play-again primary-btn" title="Restart Game">
-                            <i class="fas fa-redo"></i> Reset Match
-                        </button>
-                        <button class="flip-board secondary-btn" title="Switch Sides">
-                            <i class="fas fa-exchange-alt"></i> Flip View
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card history-card">
-                    <h3><i class="fas fa-history"></i> Move History</h3>
-                    <div id="move-history" class="move-history">
-                        <div class="history-placeholder">Waiting for the first move...</div>
-                    </div>
-                </div>
-            </aside>
-        </main>
-
-        <footer>
-            <p>&copy; 2026 GrandMaster AI System • Engine powered by <span class="accent-text">Minimax with Alpha-Beta</span></p>
-        </footer>
+      <footer>
+        <p>
+          &copy; 2026 GrandMaster AI System • Engine powered by
+          <span class="accent-text">Minimax with Alpha-Beta</span>
+        </p>
+      </footer>
     </div>
 
     <!-- Promotion Modal -->
     <div id="promotion-modal" class="modal">
-        <div class="modal-content">
-            <h3>Choose Promotion</h3>
-            <div class="promotion-options">
-                <div class="promotion-option" data-piece="q">
-                    <img src="/static/img/chesspieces/wikipedia/wQ.png" alt="Queen" id="promo-q">
-                    <span>Queen</span>
-                </div>
-                <div class="promotion-option" data-piece="r">
-                    <img src="/static/img/chesspieces/wikipedia/wR.png" alt="Rook" id="promo-r">
-                    <span>Rook</span>
-                </div>
-                <div class="promotion-option" data-piece="b">
-                    <img src="/static/img/chesspieces/wikipedia/wB.png" alt="Bishop" id="promo-b">
-                    <span>Bishop</span>
-                </div>
-                <div class="promotion-option" data-piece="n">
-                    <img src="/static/img/chesspieces/wikipedia/wN.png" alt="Knight" id="promo-n">
-                    <span>Knight</span>
-                </div>
-            </div>
+      <div class="modal-content">
+        <h3>Choose Promotion</h3>
+        <div class="promotion-options">
+          <div class="promotion-option" data-piece="q">
+            <img
+              src="/static/img/chesspieces/wikipedia/wQ.png"
+              alt="Queen"
+              id="promo-q"
+            />
+            <span>Queen</span>
+          </div>
+          <div class="promotion-option" data-piece="r">
+            <img
+              src="/static/img/chesspieces/wikipedia/wR.png"
+              alt="Rook"
+              id="promo-r"
+            />
+            <span>Rook</span>
+          </div>
+          <div class="promotion-option" data-piece="b">
+            <img
+              src="/static/img/chesspieces/wikipedia/wB.png"
+              alt="Bishop"
+              id="promo-b"
+            />
+            <span>Bishop</span>
+          </div>
+          <div class="promotion-option" data-piece="n">
+            <img
+              src="/static/img/chesspieces/wikipedia/wN.png"
+              alt="Knight"
+              id="promo-n"
+            />
+            <span>Knight</span>
+          </div>
         </div>
+      </div>
     </div>
-
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="{{ url_for('static', filename='js/vendor/chessboard.min.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-
+  </body>
 </html>

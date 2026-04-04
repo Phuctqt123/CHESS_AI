@@ -31,8 +31,9 @@ def index():
 def get_move():
     data = request.get_json()
     fen = data.get('fen')
+    depth = data.get('depth', 3) # Default to 3 if not provided
 
-    move = get_best_move(fen)
+    move = get_best_move(fen, depth=depth)
 
     return jsonify({
         "move": move
