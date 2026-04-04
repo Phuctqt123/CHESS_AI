@@ -240,7 +240,7 @@ main {
   gap: 12px;
 }
 
-.play-again {
+.play-again, .bot-v-bot {
   grid-column: span 2;
 }
 

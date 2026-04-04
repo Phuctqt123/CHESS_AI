@@ -335,14 +335,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    // Event listener for the "Flip Board" button
+    // Event listener for the "Flip View" button (Purely Visual)
     document.querySelector('.flip-board').addEventListener('click', () => {
         board.flip();
+    });
+
+    // Event listener for the "Switch Sides" button (Changes user's playing color)
+    document.querySelector('.switch-sides').addEventListener('click', () => {
         userColor = userColor === 'w' ? 'b' : 'w';
+        board.flip(); // Flips visual too for the new perspective
         
         checkTurnStatus();
         
-        // If it's now the computer's turn after flipping
+        // If it's now the computer's turn after switching sides
         if (game.turn() !== userColor) {
             makeComputerMove();
         }
