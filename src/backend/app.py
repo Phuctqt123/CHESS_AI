@@ -45,6 +45,3 @@ def open_browser():
     if os.environ.get('Open_Browser', 'True') == 'True':
         webbrowser.open(f"http://127.0.0.1:{os.environ.get('PORT', 5003)}")
 
-if __name__ == '__main__':
-    # When running directly from this file (development/testing)
-    app.run(host='0.0.0.0', port=5003, debug=True)
