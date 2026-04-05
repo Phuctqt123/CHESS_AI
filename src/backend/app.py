@@ -34,20 +34,20 @@ def get_move():
     depth = int(data.get('depth', 3))
 
     # Điều phối logic dựa trên tùy chọn của người dùng
+    print(f"DEBUG: Move requested. Algo: {algo}, Depth: {depth}")
+    
     if algo == 'mcts':
-        # UI hiển thị iterations = depth * 100, nên ta truyền thẳng vào đây
-        move = get_best_move_mcts(fen, iterations=depth * 50)
+        # UI hiển thị iterations = depth * 50, nên ta truyền thẳng vào đây
+        move = get_best_move_mcts(fen, iterations=depth * 100)
     elif algo == 'genetic':
         move = get_best_move_genetic(fen, depth=depth)
     else: 
         # Mặc định là alphabeta
         move = get_best_move_alphabeta(fen, depth=depth)
 
+
     return jsonify({"move": move})
 
 def open_browser():
     if os.environ.get('Open_Browser', 'True') == 'True':
         webbrowser.open(f"http://127.0.0.1:{os.environ.get('PORT', 5003)}")
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5003, debug=True)
