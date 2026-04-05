@@ -19,12 +19,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const eveSetup = document.getElementById('eve-setup');
     const depthSlider = document.getElementById('depth-slider');
     const depthValueDisplay = document.getElementById('depth-value');
+    const whiteDepthSlider = document.getElementById('white-depth-slider');
+    const whiteDepthValueDisplay = document.getElementById('white-depth-value');
+    const blackDepthSlider = document.getElementById('black-depth-slider');
+    const blackDepthValueDisplay = document.getElementById('black-depth-value');
 
-    if (depthSlider && depthValueDisplay) {
-        depthSlider.addEventListener('input', () => {
-            depthValueDisplay.textContent = depthSlider.value;
-        });
-    }
+    const setupSliderListener = (slider, display) => {
+        if (slider && display) {
+            slider.addEventListener('input', () => {
+                display.textContent = slider.value;
+            });
+        }
+    };
+
+    setupSliderListener(depthSlider, depthValueDisplay);
+    setupSliderListener(whiteDepthSlider, whiteDepthValueDisplay);
+    setupSliderListener(blackDepthSlider, blackDepthValueDisplay);
+
 
     const stopBot = () => {
         botIsRunning = false;
@@ -48,9 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     gameModeSelect.addEventListener('change', (e) => {
         const switchSidesBtn = document.querySelector('.switch-sides');
+
         if (e.target.value === 'pve') {
             pveSetup.style.display = 'block';
             eveSetup.style.display = 'none';
+            
             if (switchSidesBtn) switchSidesBtn.style.display = 'inline-flex';
             stopBot(); // Automatically stop AI loop and hide buttons
             
@@ -62,11 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             pveSetup.style.display = 'none';
             eveSetup.style.display = 'block';
+
             if (switchSidesBtn) switchSidesBtn.style.display = 'none';
-            // Start AI competition automatically
-            botVBot(); 
+            // Do NOT start automatically. Update buttons and wait for manual start.
+            stopBot();
         }
     });
+
+
 
     // --- Xử lý Ghi log và Quay lui lịch sử (Jump to Move) ---
     const renderMoveLog = () => {
@@ -213,7 +229,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const currentDepth = depthSlider ? parseInt(depthSlider.value) : 3;
+            let currentDepth;
+            if (gameModeSelect.value === 'pve') {
+                currentDepth = depthSlider ? parseInt(depthSlider.value) : 3;
+            } else {
+                // In EvE mode, use the slider corresponding to the current turn
+                if (game.turn() === 'w') {
+                    currentDepth = whiteDepthSlider ? parseInt(whiteDepthSlider.value) : 3;
+                } else {
+                    currentDepth = blackDepthSlider ? parseInt(blackDepthSlider.value) : 3;
+                }
+            }
+
             const response = await fetch('/move', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
