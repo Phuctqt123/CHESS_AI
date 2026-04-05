@@ -26,13 +26,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const stopBot = () => {
+        botIsRunning = false;
+        
+        const botVBotBtn = document.querySelector('.bot-v-bot');
+        const stopBtn = document.getElementById('btn-stop');
+        const switchSidesBtn = document.querySelector('.switch-sides');
+        
+        if (gameModeSelect.value === 'eve') {
+            if (botVBotBtn) botVBotBtn.style.display = 'inline-flex';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (switchSidesBtn) switchSidesBtn.style.display = 'none';
+        } else {
+            // In PvE mode
+            if (botVBotBtn) botVBotBtn.style.display = 'none';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (switchSidesBtn) switchSidesBtn.style.display = 'inline-flex';
+        }
+        checkTurnStatus();
+    };
+
     gameModeSelect.addEventListener('change', (e) => {
+        const switchSidesBtn = document.querySelector('.switch-sides');
         if (e.target.value === 'pve') {
             pveSetup.style.display = 'block';
             eveSetup.style.display = 'none';
+            if (switchSidesBtn) switchSidesBtn.style.display = 'inline-flex';
+            stopBot(); // Automatically stop AI loop and hide buttons
+            
+            // Re-check turn status and trigger AI if it's AI's turn in PvE
+            checkTurnStatus();
+            if (game.turn() !== userColor) {
+                makeComputerMove();
+            }
         } else {
             pveSetup.style.display = 'none';
             eveSetup.style.display = 'block';
+            if (switchSidesBtn) switchSidesBtn.style.display = 'none';
+            // Start AI competition automatically
+            botVBot(); 
         }
     });
 
@@ -75,11 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const jumpToMove = (index) => {
         // Dừng bot nếu đang đánh nhau
-        if (botIsRunning) {
-            botIsRunning = false;
-            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
-            document.getElementById('btn-stop').style.display = 'none';
-        }
+        stopBot();
 
         currentHistoryIndex = index;
         game.reset();
@@ -127,13 +155,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        if (botIsRunning || gameModeSelect.value === 'eve') {
+        const isEvEMode = gameModeSelect.value === 'eve';
+        
+        if (botIsRunning) {
             const currentTurnAlgo = game.turn() === 'w' ? 'White AI' : 'Black AI';
             updateStatus(`Bot vs Bot: ${currentTurnAlgo} thinking...`, "warning");
+        } else if (isEvEMode) {
+            updateStatus("Bot vs Bot: Paused", "warning");
         } else {
+            // PvE Mode
             const isUserTurn = game.turn() === userColor;
-            const turnText = isUserTurn ? `Your Turn (${userColor === 'w' ? 'White' : 'Black'})` : "AI's Turn (Thinking)";
-            updateStatus(turnText, isUserTurn ? "success" : "warning");
+            if (isAiThinking) {
+                updateStatus("AI is thinking...", "warning");
+            } else {
+                const turnText = isUserTurn ? `Your Turn (${userColor === 'w' ? 'White' : 'Black'})` : "AI's Turn (Waiting)";
+                updateStatus(turnText, isUserTurn ? "success" : "warning");
+            }
         }
     };
 
@@ -153,11 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateStatus(status, "error");
         
-        if (botIsRunning) {
-            botIsRunning = false;
-            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
-            document.getElementById('btn-stop').style.display = 'none';
-        }
+        stopBot();
         
         setTimeout(() => alert(status), 500);
     };
@@ -210,10 +243,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (move !== null) {
                 board.position(game.fen());
-                handleNewMove(move); // Ghi đè bằng hàm lưu lịch sử mới
+                isAiThinking = false; // Reset state before updating UI
+                handleNewMove(move); // This calls checkTurnStatus()
+            } else {
+                isAiThinking = false;
             }
-
-            isAiThinking = false;
             return 0;
 
         } catch (error) {
@@ -226,8 +260,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Tương tác Bàn cờ (Highlight & Drag-Drop của bạn) ---
     const onDragStart = (source, piece) => {
-        if (game.game_over() || botIsRunning) return false;
-        if (game.turn() !== userColor) return false;
+        // Prevent interaction if game over, bot loop is running, or AI is thinking
+        if (game.game_over() || botIsRunning || isAiThinking) return false;
+        
+        // Only allow moves in PvE mode on user's turn
+        if (gameModeSelect.value !== 'pve' || game.turn() !== userColor) return false;
         
         const canDrag = (userColor === 'w' && piece.search(/^w/) !== -1) ||
                         (userColor === 'b' && piece.search(/^b/) !== -1);
@@ -251,7 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const onMouseoverSquare = (square, piece) => {
-        if (game.turn() !== userColor || botIsRunning) return;
+        if (game.game_over() || botIsRunning || isAiThinking) return;
+        if (gameModeSelect.value !== 'pve' || game.turn() !== userColor) return;
+        
         const moves = game.moves({ square: square, verbose: true });
         if (moves.length === 0) return;
 
@@ -353,11 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pendingMove = null;
         if(promotionModal) promotionModal.style.display = 'none';
         
-        if (botIsRunning) {
-            botIsRunning = false;
-            document.querySelector('.bot-v-bot').style.display = 'inline-flex';
-            document.getElementById('btn-stop').style.display = 'none';
-        }
+        stopBot();
         checkTurnStatus();
     });
 
@@ -366,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.querySelector('.switch-sides').addEventListener('click', () => {
-        if (botIsRunning) return;
+        if (botIsRunning || isAiThinking) return;
         userColor = userColor === 'w' ? 'b' : 'w';
         board.flip();
         checkTurnStatus();
@@ -378,35 +413,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Cập nhật Bot vs Bot với nút Stop riêng ---
     const botVBot = async () => {
         if (botIsRunning) return;
+        
+        // Ensure we are in eve mode before starting
+        if (gameModeSelect.value !== 'eve') return;
+
         botIsRunning = true;
         
-        // Đổi nút hiển thị
-        document.querySelector('.bot-v-bot').style.display = 'none';
-        document.getElementById('btn-stop').style.display = 'inline-flex';
+        // UI: Hide Start button, Show Stop button
+        const botVBotBtn = document.querySelector('.bot-v-bot');
+        const stopBtn = document.getElementById('btn-stop');
+        if (botVBotBtn) botVBotBtn.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'inline-flex';
 
-        // Tự động chuyển UI sang chế độ EvE
-        gameModeSelect.value = 'eve';
-        gameModeSelect.dispatchEvent(new Event('change'));
-        
-        while (botIsRunning) {
+        while (botIsRunning && gameModeSelect.value === 'eve') {
             const result = await makeComputerMove();
-            if (result !== 0) {
+            // result 0 = success, -1 = AI still thinking or game over
+            if (result !== 0 && result !== -1) {
                 break;
             }
+            if (!botIsRunning) break;
             await new Promise(resolve => setTimeout(resolve, 600));
         }
 
-        botIsRunning = false;
-        document.querySelector('.bot-v-bot').style.display = 'inline-flex';
-        document.getElementById('btn-stop').style.display = 'none';
+        // Only call stopBot if we are still in eve mode
+        if (gameModeSelect.value === 'eve') {
+            stopBot();
+        }
     };
+
+    // Initial UI state setup based on default mode
+    if (gameModeSelect.value === 'pve') {
+        const botVBotBtn = document.querySelector('.bot-v-bot');
+        const stopBtn = document.getElementById('btn-stop');
+        const switchSidesBtn = document.querySelector('.switch-sides');
+        if (botVBotBtn) botVBotBtn.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (switchSidesBtn) switchSidesBtn.style.display = 'inline-flex';
+    }
 
     document.querySelector('.bot-v-bot').addEventListener('click', botVBot);
 
-    document.getElementById('btn-stop').addEventListener('click', () => {
-        botIsRunning = false;
-        document.querySelector('.bot-v-bot').style.display = 'inline-flex';
-        document.getElementById('btn-stop').style.display = 'none';
-        checkTurnStatus();
-    });
+    document.getElementById('btn-stop').addEventListener('click', stopBot);
 });
